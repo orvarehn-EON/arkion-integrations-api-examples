@@ -1,0 +1,22 @@
+{
+	"name": "integrations-api-examples",
+	"version": "0.1.0",
+	"private": true,
+	"description": "CLI examples for Arkion integrations API",
+	"type": "module",
+	"engines": {
+		"node": ">=18"
+	},
+	"scripts": {
+		"build": "tsc -p tsconfig.json",
+		"scenario": "npm run build && node dist/src/run-scenario.js"
+	},
+	"dependencies": {
+		"dotenv": "^16.6.1",
+		"jose": "^5.9.6"
+	},
+	"devDependencies": {
+		"@types/node": "^22.15.29",
+		"typescript": "^5.8.3"
+	}
+}
