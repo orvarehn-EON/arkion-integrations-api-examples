@@ -39,6 +39,7 @@ Required values in `.env`:
 - `TENANT_ID`
 - `PUBLIC_KEY`
 - `PRIVATE_KEY`
+- `ARKION_PUBLIC_KEY` (required by webhook receiver to verify webhook JWTs)
 
 Optional:
 
@@ -148,6 +149,14 @@ Project-related calls now use the generic HTTP client in `src/api/http-client.ts
 
 The repo also includes an example local server that can receive webhook POST calls from the integrations API.
 
+Webhook authentication:
+
+- Each webhook request must include `Authorization: Bearer <token>`.
+- The server verifies that token with `ARKION_PUBLIC_KEY`.
+- Arkion webhook headers are accepted and logged with payload processing.
+- `X-Arkion-Webhook-Event`
+- `X-Arkion-Tenant-Id`
+
 Start the server:
 
 ```bash
@@ -187,17 +196,29 @@ Example curl calls:
 ```bash
 curl -X POST "http://localhost:8787/ping" \
 	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <webhook_token>" \
+	-H "X-Arkion-Webhook-Event: ping" \
+	-H "X-Arkion-Tenant-Id: <tenant_id>" \
 	-d '{"event_id":"evt_1","message":"ping"}'
 
 curl -X POST "http://localhost:8787/project-report-available" \
 	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <webhook_token>" \
+	-H "X-Arkion-Webhook-Event: project-report-available" \
+	-H "X-Arkion-Tenant-Id: <tenant_id>" \
 	-d '{"event_id":"evt_2","project_id":42,"report_id":"rpt_100"}'
 
 curl -X POST "http://localhost:8787/project-archived" \
 	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <webhook_token>" \
+	-H "X-Arkion-Webhook-Event: project-archived" \
+	-H "X-Arkion-Tenant-Id: <tenant_id>" \
 	-d '{"event_id":"evt_3","project_id":42,"archived":true}'
 
 curl -X POST "http://localhost:8787/urgent-deficiency" \
 	-H "Content-Type: application/json" \
+	-H "Authorization: Bearer <webhook_token>" \
+	-H "X-Arkion-Webhook-Event: urgent-deficiency" \
+	-H "X-Arkion-Tenant-Id: <tenant_id>" \
 	-d '{"event_id":"evt_4","project_id":42,"severity":"critical"}'
 ```
