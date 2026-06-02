@@ -2,28 +2,6 @@
 
 Examples of how to use Arkions integrations API.
 
-## Example Scenarios
-
-All scenarios run through the same helper:
-
-```bash
-npm run scenario -- <scenario-name> [args...]
-```
-
-Available scenarios:
-
-- `get-project <project_id>`
-- `get-projects`
-- `get-images <project_id>`
-- `get-image-objects <project_id> <image_id>`
-- `get-image-object-types <project_id> <image_id>`
-
-Primary flow used by most scenarios:
-
-1. Exchange an assertion token for an access token:
-	- `POST /tenant/{tenant_id}/auth/token`
-2. Call the target tenant endpoint with bearer auth.
-
 ## Prerequisites
 
 - Node.js 18+
@@ -60,20 +38,27 @@ Optional:
 
 The app generates an assertion JWT from `PUBLIC_KEY` + `PRIVATE_KEY`, then sends it to `POST /tenant/{tenant_id}/auth/token`.
 
-## Run From macOS CLI (direct node)
+## Example Scenarios
+
+All scenarios run through the same helper:
 
 ```bash
-node dist/src/run-scenario.js get-project <project_id>
+npm run scenario -- <scenario-name> [args...]
 ```
 
-Example:
+Available scenarios:
 
-```bash
-node dist/src/run-scenario.js get-project 42
-```
+- `get-project <project_id>`
+- `get-projects`
+- `get-images <project_id>`
+- `get-image-objects <project_id> <image_id>`
+- `get-image-object-types <project_id> <image_id>`
 
-When adding new scenarios, create a file in `src/scenarios` and run it by filename.
-Example: `src/scenarios/list-projects.ts` can be run as `npm run scenario -- list-projects`.
+Primary flow used by most scenarios:
+
+1. Exchange an assertion token for an access token:
+	- `POST /tenant/{tenant_id}/auth/token`
+2. Call the target tenant endpoint with bearer auth.
 
 ## Expected output
 
@@ -115,17 +100,13 @@ curl -X GET "https://integrations-gateway.dev.arkion.co/tenant/<tenant_id>/proje
 - If you receive `token_expired` or `invalid_token`, request a new token and retry.
 - If you receive `project_access_denied`, use a tenant token that has access to the project.
 
-## Project API Module
-
-Project-related calls now use the generic HTTP client in `src/api/http-client.ts`, with endpoint requests performed directly in scenarios/tasks.
-
 ## Webhook Receiver Example
 
 The repo also includes an example local server that can receive webhook POST calls from the integrations API.
 
 Webhook authentication:
 
-- Each webhook request must include `Authorization: Bearer <token>`.
+- Each webhook request includes `Authorization: Bearer <token>`.
 - The server verifies that token with `ARKION_PUBLIC_KEY`.
 - Arkion webhook headers are accepted and logged with payload processing.
 - `X-Arkion-Webhook-Event`
