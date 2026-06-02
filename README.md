@@ -139,6 +139,7 @@ Available webhook endpoints:
 
 Background task behavior:
 
+- `POST /project-report-available` emits an in-memory event that triggers the task in `src/tasks/project-report-available.ts`.
 - `POST /urgent-deficiency` emits an in-memory event that triggers the task in `src/tasks/urgent-deficiency.ts`.
 - The task runs in the background so the webhook endpoint can return `204` immediately.
 

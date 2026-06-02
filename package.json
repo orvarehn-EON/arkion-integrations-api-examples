@@ -17,7 +17,8 @@
 		"axios": "^1.16.1",
 		"dotenv": "^16.6.1",
 		"express": "^5.2.1",
-		"jose": "^5.9.6"
+		"jose": "^5.9.6",
+		"zod": "^4.4.3"
 	},
 	"devDependencies": {
 		"@types/express": "^5.0.6",
