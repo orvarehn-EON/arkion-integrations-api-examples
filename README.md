@@ -2,14 +2,27 @@
 
 Examples of how to use Arkions integrations API.
 
-## Scenario: Get Project (token first)
+## Example Scenarios
 
-This example runs a CLI flow with no UI:
+All scenarios run through the same helper:
+
+```bash
+npm run scenario -- <scenario-name> [args...]
+```
+
+Available scenarios:
+
+- `get-project <project_id>`
+- `get-projects`
+- `get-images <project_id>`
+- `get-image-objects <project_id> <image_id>`
+- `get-image-object-types <project_id> <image_id>`
+
+Primary flow used by most scenarios:
 
 1. Exchange an assertion token for an access token:
-	 - `POST /tenant/{tenant_id}/auth/token`
-2. Use the access token to fetch a project:
-	 - `GET /tenant/{tenant_id}/projects/{project_id}`
+	- `POST /tenant/{tenant_id}/auth/token`
+2. Call the target tenant endpoint with bearer auth.
 
 ## Prerequisites
 
@@ -35,7 +48,6 @@ Edit `.env` in the repo root and set your values.
 Required values in `.env`:
 
 - `INTEGRATIONS_API_KEY`
-- `INTEGRATIONS_ORIGIN`
 - `TENANT_ID`
 - `PUBLIC_KEY`
 - `PRIVATE_KEY`
@@ -44,6 +56,7 @@ Required values in `.env`:
 Optional:
 
 - `INTEGRATIONS_BASE_URL` (defaults to `https://integrations-gateway.dev.arkion.co`)
+- `INTEGRATIONS_ORIGIN` (only required when your Arkion setup enforces Origin validation)
 
 The app generates an assertion JWT from `PUBLIC_KEY` + `PRIVATE_KEY`, then sends it to `POST /tenant/{tenant_id}/auth/token`.
 
@@ -59,52 +72,8 @@ Example:
 node dist/src/run-scenario.js get-project 42
 ```
 
-## Generic npm helper
-
-If you prefer a single command that builds and runs any scenario:
-
-```bash
-npm run scenario -- get-project <project_id>
-```
-
 When adding new scenarios, create a file in `src/scenarios` and run it by filename.
 Example: `src/scenarios/list-projects.ts` can be run as `npm run scenario -- list-projects`.
-
-## Additional Scenario: Get Projects From Token Scopes
-
-This scenario creates an access token and returns all project IDs found in `scopes.project_ids` from the token claims.
-
-```bash
-npm run scenario -- get-projects
-```
-
-Example output:
-
-```json
-{
-	"project_ids": [42, 1337]
-}
-```
-
-## Additional Scenarios: Images
-
-Get images for a project:
-
-```bash
-npm run scenario -- get-images <project_id>
-```
-
-Get image objects for a project:
-
-```bash
-npm run scenario -- get-image-objects <project_id> <image_id>
-```
-
-Get image object types for a specific image:
-
-```bash
-npm run scenario -- get-image-object-types <project_id> <image_id>
-```
 
 ## Expected output
 
@@ -121,9 +90,14 @@ Token exchange:
 ```bash
 curl -X POST "https://integrations-gateway.dev.arkion.co/tenant/<tenant_id>/auth/token" \
 	-H "x-api-key: $INTEGRATIONS_API_KEY" \
-	-H "Origin: $INTEGRATIONS_ORIGIN" \
 	-H "Content-Type: application/json" \
 	-d '{"token":"<generated_assertion_token>"}'
+```
+
+If your Arkion setup requires Origin validation, also send:
+
+```bash
+-H "Origin: $INTEGRATIONS_ORIGIN"
 ```
 
 Project call with bearer token:
@@ -136,7 +110,7 @@ curl -X GET "https://integrations-gateway.dev.arkion.co/tenant/<tenant_id>/proje
 
 ## Notes
 
-- `INTEGRATIONS_ORIGIN` is required by the token exchange endpoint.
+- `INTEGRATIONS_ORIGIN` is only required when your Arkion setup enforces Origin validation.
 - Assertion token is generated at runtime from `.env` keys (`PUBLIC_KEY`, `PRIVATE_KEY`).
 - If you receive `token_expired` or `invalid_token`, request a new token and retry.
 - If you receive `project_access_denied`, use a tenant token that has access to the project.
@@ -185,7 +159,7 @@ Available webhook endpoints:
 Background task behavior:
 
 - `POST /urgent-deficiency` emits an in-memory event that triggers the task in `src/tasks/urgent-deficiency.ts`.
-- The task runs in the background so the webhook endpoint can return `202` immediately.
+- The task runs in the background so the webhook endpoint can return `204` immediately.
 
 Utility endpoints:
 

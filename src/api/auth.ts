@@ -7,9 +7,18 @@ export async function createAccessToken(input: {
 	baseUrl: string;
 	tenantId: string;
 	apiKey: string;
-	origin: string;
+	origin?: string;
 	assertionToken: string;
 }): Promise<TokenResponse> {
+	const headers: Record<string, string> = {
+		"x-api-key": input.apiKey,
+		"Content-Type": "application/json",
+	};
+
+	if (input.origin && input.origin.trim().length > 0) {
+		headers.Origin = input.origin;
+	}
+
 	try {
 		const response = await axios.post<Partial<TokenResponse>>(
 			`${input.baseUrl}/tenant/${encodeURIComponent(
@@ -17,11 +26,7 @@ export async function createAccessToken(input: {
 			)}/auth/token`,
 			{ token: input.assertionToken },
 			{
-				headers: {
-					"x-api-key": input.apiKey,
-					Origin: input.origin,
-					"Content-Type": "application/json",
-				},
+				headers,
 			},
 		);
 

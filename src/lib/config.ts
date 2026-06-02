@@ -2,7 +2,7 @@ export interface BaseScenarioConfig {
 	baseUrl: string;
 	tenantId: string;
 	apiKey: string;
-	origin: string;
+	origin?: string;
 	publicKey: string;
 	privateKey: string;
 }
@@ -89,6 +89,7 @@ export function parseProjectImageScenarioConfig(
 
 export function parseBaseScenarioConfig(): BaseScenarioConfig {
 	const tenantId = requireEnv("TENANT_ID");
+	const origin = process.env.INTEGRATIONS_ORIGIN?.trim();
 
 	return {
 		baseUrl:
@@ -96,7 +97,7 @@ export function parseBaseScenarioConfig(): BaseScenarioConfig {
 			"https://integrations-gateway.dev.arkion.co",
 		tenantId,
 		apiKey: requireEnv("INTEGRATIONS_API_KEY"),
-		origin: requireEnv("INTEGRATIONS_ORIGIN"),
+		origin: origin && origin.length > 0 ? origin : undefined,
 		publicKey: normalizePem(requireEnv("PUBLIC_KEY")),
 		privateKey: normalizePem(requireEnv("PRIVATE_KEY")),
 	};
