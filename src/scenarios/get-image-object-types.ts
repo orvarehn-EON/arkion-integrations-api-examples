@@ -5,10 +5,13 @@ import {
 	normalizeApiClientError,
 } from "../api/http-client.js";
 import { generateAssertionToken } from "../lib/assertion-token.js";
-import { parseProjectScenarioConfig } from "../lib/config.js";
+import { parseProjectImageScenarioConfig } from "../lib/config.js";
 
 async function main(): Promise<void> {
-	const config = parseProjectScenarioConfig(process.argv, "get-project");
+	const config = parseProjectImageScenarioConfig(
+		process.argv,
+		"get-image-object-types",
+	);
 
 	console.log("Generating assertion token from PRIVATE_KEY/PUBLIC_KEY...");
 	const assertionToken = await generateAssertionToken({
@@ -28,7 +31,7 @@ async function main(): Promise<void> {
 	});
 
 	console.log(
-		`Token created (type=${token.token_type}, expires_in=${token.expires_in}s). Fetching project...`,
+		`Token created (type=${token.token_type}, expires_in=${token.expires_in}s). Fetching image object types...`,
 	);
 
 	const http = createApiHttpClient({
@@ -38,15 +41,17 @@ async function main(): Promise<void> {
 		accessToken: token.access_token,
 	});
 
-	const project = await http
-		.get<Record<string, unknown>>(`/projects/${config.projectId}`)
+	const imageObjectTypes = await http
+		.get<Record<string, unknown>>(
+			`/projects/${config.projectId}/images/${config.imageId}/image_object_types`,
+		)
 		.then((response) => response.data)
 		.catch((error: unknown) => {
-			throw normalizeApiClientError(error, "Project fetch");
+			throw normalizeApiClientError(error, "Image object types fetch");
 		});
 
-	console.log("Project fetched successfully.");
-	console.log(JSON.stringify(project, null, 2));
+	console.log("Image object types fetched successfully.");
+	console.log(JSON.stringify(imageObjectTypes, null, 2));
 }
 
 main().catch((error: unknown) => {

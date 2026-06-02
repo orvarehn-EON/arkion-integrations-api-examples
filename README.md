@@ -85,6 +85,26 @@ Example output:
 }
 ```
 
+## Additional Scenarios: Images
+
+Get images for a project:
+
+```bash
+npm run scenario -- get-images <project_id>
+```
+
+Get image objects for a project:
+
+```bash
+npm run scenario -- get-image-objects <project_id> <image_id>
+```
+
+Get image object types for a specific image:
+
+```bash
+npm run scenario -- get-image-object-types <project_id> <image_id>
+```
+
 ## Expected output
 
 The script prints:

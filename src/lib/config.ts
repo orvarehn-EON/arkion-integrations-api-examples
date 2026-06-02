@@ -11,6 +11,10 @@ export interface ScenarioConfig extends BaseScenarioConfig {
 	projectId: number;
 }
 
+export interface ScenarioWithImageConfig extends ScenarioConfig {
+	imageId: number;
+}
+
 function requireEnv(name: string): string {
 	const value = process.env[name];
 	if (!value || value.trim().length === 0) {
@@ -19,14 +23,22 @@ function requireEnv(name: string): string {
 	return value;
 }
 
-function parseProjectId(raw: string): number {
+function parseNonNegativeInteger(raw: string, argumentName: string): number {
 	const parsed = Number(raw);
 	if (!Number.isInteger(parsed) || parsed < 0) {
 		throw new Error(
-			`Invalid project_id: ${raw}. It must be a non-negative integer.`,
+			`Invalid ${argumentName}: ${raw}. It must be a non-negative integer.`,
 		);
 	}
 	return parsed;
+}
+
+function parseProjectId(raw: string): number {
+	return parseNonNegativeInteger(raw, "project_id");
+}
+
+function parseImageId(raw: string): number {
+	return parseNonNegativeInteger(raw, "image_id");
 }
 
 function normalizePem(key: string): string {
@@ -34,17 +46,44 @@ function normalizePem(key: string): string {
 }
 
 export function parseScenarioConfig(argv: string[]): ScenarioConfig {
+	return parseProjectScenarioConfig(argv, "get-project");
+}
+
+export function parseProjectScenarioConfig(
+	argv: string[],
+	scenarioName: string,
+): ScenarioConfig {
 	const rawProjectId = argv[2];
 
 	if (!rawProjectId) {
 		throw new Error(
-			"Usage: node dist/src/scenarios/get-project.js <project_id>",
+			`Usage: node dist/src/scenarios/${scenarioName}.js <project_id>`,
 		);
 	}
 
 	return {
 		...parseBaseScenarioConfig(),
 		projectId: parseProjectId(rawProjectId),
+	};
+}
+
+export function parseProjectImageScenarioConfig(
+	argv: string[],
+	scenarioName: string,
+): ScenarioWithImageConfig {
+	const rawProjectId = argv[2];
+	const rawImageId = argv[3];
+
+	if (!rawProjectId || !rawImageId) {
+		throw new Error(
+			`Usage: node dist/src/scenarios/${scenarioName}.js <project_id> <image_id>`,
+		);
+	}
+
+	return {
+		...parseBaseScenarioConfig(),
+		projectId: parseProjectId(rawProjectId),
+		imageId: parseImageId(rawImageId),
 	};
 }
 
