@@ -4,29 +4,13 @@ import { jwtVerify } from "jose";
 
 const arkionWebhookPublicKey = loadArkionWebhookPublicKey();
 
-function normalizePem(key: string): string {
-	const trimmed = key.trim();
-	const unquoted =
-		trimmed.length >= 2 &&
-		((trimmed.startsWith('"') && trimmed.endsWith('"')) ||
-			(trimmed.startsWith("'") && trimmed.endsWith("'")))
-			? trimmed.slice(1, -1)
-			: trimmed;
-
-	return unquoted
-		.replace(/\\r\\n/g, "\n")
-		.replace(/\\n/g, "\n")
-		.replace(/\r\n/g, "\n")
-		.trim();
-}
-
 function loadArkionWebhookPublicKey() {
 	const rawKey = process.env.ARKION_PUBLIC_KEY;
 	if (!rawKey || rawKey.trim().length === 0) {
 		throw new Error("Missing required environment variable: ARKION_PUBLIC_KEY");
 	}
 
-	const normalized = normalizePem(rawKey);
+	const normalized = rawKey.replace(/\\n/g, "\n").trim();
 
 	try {
 		return createPublicKey(normalized);

@@ -25,11 +25,11 @@ Edit `.env` in the repo root and set your values.
 
 Required values in `.env`:
 
-- `INTEGRATIONS_API_KEY`
-- `TENANT_ID`
-- `PUBLIC_KEY`
-- `PRIVATE_KEY`
-- `ARKION_PUBLIC_KEY` (required by webhook receiver to verify webhook JWTs)
+- `INTEGRATIONS_API_KEY` - Available to rotate and copy in Arkion UI
+- `TENANT_ID` - Available in Arkion UI
+- `PRIVATE_KEY` - Used to create assertion token used for access token exchange
+- `PUBLIC_KEY` - Needs to be set in Arkion UI so the integrations-api can verify and scope requests in generated access token
+- `ARKION_PUBLIC_KEY` - Available to copy from Arkion UI. Used by webhook receiver to verify received JWT
 
 Optional:
 
