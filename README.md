@@ -132,16 +132,14 @@ WEBHOOK_PORT=9999 npm run server
 
 Available webhook endpoints:
 
-- `POST /ping`
-- `POST /project-report-available`
-- `POST /project-archived`
-- `POST /urgent-deficiency`
+- `POST /ping` - Test that integration works
+- `POST /project-report-available` - Get information about all defects in a project
+- `POST /project-archived` - Get information about all defects and objects in a project
+- `POST /urgent-deficiency` - Get information about a defect
 
 Background task behavior:
 
-- `POST /project-report-available` emits an in-memory event that triggers the task in `src/tasks/project-report-available.ts`.
-- `POST /urgent-deficiency` emits an in-memory event that triggers the task in `src/tasks/urgent-deficiency.ts`.
-- The task runs in the background so the webhook endpoint can return `204` immediately.
+- Webhook endpoints create task events that run in the background so the endpoint can return `204` immediately.
 
 Utility endpoints:
 
