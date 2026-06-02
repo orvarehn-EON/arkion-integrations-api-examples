@@ -1,7 +1,9 @@
 import "dotenv/config";
-import { createAccessToken } from "../../api/auth.js";
-import { fetchProject } from "../../api/project.js";
-import { renderApiError } from "../../api/utils.js";
+import { createAccessToken } from "../api/auth.js";
+import {
+	createApiHttpClient,
+	normalizeApiClientError,
+} from "../api/http-client.js";
 import { generateAssertionToken } from "../lib/assertion-token.js";
 import { parseScenarioConfig } from "../lib/config.js";
 
@@ -29,19 +31,27 @@ async function main(): Promise<void> {
 		`Token created (type=${token.token_type}, expires_in=${token.expires_in}s). Fetching project...`,
 	);
 
-	const project = await fetchProject({
+	const http = createApiHttpClient({
 		baseUrl: config.baseUrl,
 		tenantId: config.tenantId,
-		projectId: config.projectId,
 		apiKey: config.apiKey,
 		accessToken: token.access_token,
 	});
+
+	const project = await http
+		.get<Record<string, unknown>>(`/projects/${config.projectId}`)
+		.then((response) => response.data)
+		.catch((error: unknown) => {
+			throw normalizeApiClientError(error, "Project fetch");
+		});
 
 	console.log("Project fetched successfully.");
 	console.log(JSON.stringify(project, null, 2));
 }
 
 main().catch((error: unknown) => {
-	console.error(`Error: ${renderApiError(error)}`);
+	console.error(
+		`Error: ${error instanceof Error ? error.message : String(error)}`,
+	);
 	process.exitCode = 1;
 });

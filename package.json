@@ -8,15 +8,21 @@
 		"node": ">=18"
 	},
 	"scripts": {
+		"scenario": "npm run build && node dist/src/run-scenario.js",
 		"build": "tsc -p tsconfig.json",
-		"scenario": "npm run build && node dist/src/run-scenario.js"
+		"server": "npm run build && node dist/src/server/webhooks.js",
+		"dev": "tsc-watch --onSuccess \"node dist/src/server/webhooks.js\""
 	},
 	"dependencies": {
+		"axios": "^1.16.1",
 		"dotenv": "^16.6.1",
+		"express": "^5.2.1",
 		"jose": "^5.9.6"
 	},
 	"devDependencies": {
+		"@types/express": "^5.0.6",
 		"@types/node": "^22.15.29",
+		"tsc-watch": "^7.2.0",
 		"typescript": "^5.8.3"
 	}
 }

@@ -122,4 +122,62 @@ curl -X GET "https://integrations-gateway.dev.arkion.co/tenant/<tenant_id>/proje
 
 ## Project API Module
 
-Project-related endpoints are organized under `api/project.ts` for a feature-based structure as new project endpoints are added.
+Project-related calls now use the generic HTTP client in `src/api/http-client.ts`, with endpoint requests performed directly in scenarios/tasks.
+
+## Webhook Receiver Example
+
+The repo also includes an example local server that can receive webhook POST calls from the integrations API.
+
+Start the server:
+
+```bash
+npm run server
+```
+
+Watch mode for local testing (auto-restarts on file changes):
+
+```bash
+npm run dev
+```
+
+Optional port override:
+
+```bash
+WEBHOOK_PORT=9999 npm run server
+```
+
+Available webhook endpoints:
+
+- `POST /ping`
+- `POST /project-report-available`
+- `POST /project-archived`
+- `POST /urgent-deficiency`
+
+Background task behavior:
+
+- `POST /urgent-deficiency` emits an in-memory event that triggers the task in `src/tasks/urgent-deficiency.ts`.
+- The task runs in the background so the webhook endpoint can return `202` immediately.
+
+Utility endpoints:
+
+- `GET /health`
+
+Example curl calls:
+
+```bash
+curl -X POST "http://localhost:8787/ping" \
+	-H "Content-Type: application/json" \
+	-d '{"event_id":"evt_1","message":"ping"}'
+
+curl -X POST "http://localhost:8787/project-report-available" \
+	-H "Content-Type: application/json" \
+	-d '{"event_id":"evt_2","project_id":42,"report_id":"rpt_100"}'
+
+curl -X POST "http://localhost:8787/project-archived" \
+	-H "Content-Type: application/json" \
+	-d '{"event_id":"evt_3","project_id":42,"archived":true}'
+
+curl -X POST "http://localhost:8787/urgent-deficiency" \
+	-H "Content-Type: application/json" \
+	-d '{"event_id":"evt_4","project_id":42,"severity":"critical"}'
+```

@@ -2,8 +2,7 @@ import "dotenv/config";
 import {
 	createAccessToken,
 	extractProjectIdsFromAccessToken,
-} from "../../api/auth.js";
-import { renderApiError } from "../../api/utils.js";
+} from "../api/auth.js";
 import { generateAssertionToken } from "../lib/assertion-token.js";
 import { parseBaseScenarioConfig } from "../lib/config.js";
 
@@ -32,6 +31,8 @@ async function main(): Promise<void> {
 }
 
 main().catch((error: unknown) => {
-	console.error(`Error: ${renderApiError(error)}`);
+	console.error(
+		`Error: ${error instanceof Error ? error.message : String(error)}`,
+	);
 	process.exitCode = 1;
 });
