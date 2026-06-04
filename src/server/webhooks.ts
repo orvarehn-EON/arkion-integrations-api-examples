@@ -2,6 +2,7 @@ import "dotenv/config";
 import express, { type Request, type Response } from "express";
 import { z } from "zod";
 import {
+	emitProjectArchivedEvent,
 	emitProjectReportAvailableEvent,
 	emitUrgentDeficiencyEvent,
 	registerTasks,
@@ -85,6 +86,7 @@ app.post(
 		console.log(
 			`[webhook:project-archived] payload=${JSON.stringify(payload)}`,
 		);
+		emitProjectArchivedEvent(payload);
 		res.sendStatus(204);
 	},
 );

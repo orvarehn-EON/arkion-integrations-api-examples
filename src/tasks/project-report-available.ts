@@ -1,10 +1,11 @@
-import { createAccessToken } from "../api/auth.js";
-import {
-	createApiHttpClient,
-	normalizeApiClientError,
-} from "../api/http-client.js";
-import { generateAssertionToken } from "../lib/assertion-token.js";
+import { normalizeApiClientError } from "../api/http-client.js";
 import { parseBaseScenarioConfig } from "../lib/config.js";
+import {
+	createTokenSession,
+	formatElapsedMinutesSeconds,
+	getRequiredNonNegativeInteger,
+	TOKEN_REFRESH_BUFFER_MS,
+} from "./utils.js";
 
 type ProjectReportAvailablePayload = Record<string, unknown>;
 
@@ -12,19 +13,6 @@ interface DefectItem {
 	image_id: number;
 	image_object_id: number;
 	image_object_type_id: number;
-}
-
-function getRequiredProjectId(payload: ProjectReportAvailablePayload): number {
-	const raw = payload.project_id;
-	const parsed = Number(raw);
-	if (!Number.isInteger(parsed) || parsed < 0) {
-		throw new Error(
-			`Payload field project_id must be a non-negative integer. Received: ${String(
-				raw,
-			)}`,
-		);
-	}
-	return parsed;
 }
 
 function parseDefectItem(raw: unknown): DefectItem {
@@ -55,42 +43,22 @@ function parseDefectItem(raw: unknown): DefectItem {
 	};
 }
 
-function formatElapsedMinutesSeconds(elapsedMs: number): string {
-	const totalSeconds = Math.floor(elapsedMs / 1000);
-	const minutes = Math.floor(totalSeconds / 60);
-	const seconds = totalSeconds % 60;
-	return `${minutes}m ${seconds}s`;
-}
-
 export async function runProjectReportAvailableTask(
 	payload: ProjectReportAvailablePayload,
 ): Promise<void> {
 	const startMs = Date.now();
 
 	try {
-		const projectId = getRequiredProjectId(payload);
+		const projectId = getRequiredNonNegativeInteger(payload, "project_id");
 
 		const config = parseBaseScenarioConfig();
-		const assertionToken = await generateAssertionToken({
-			baseUrl: config.baseUrl,
-			tenantId: config.tenantId,
-			publicKey: config.publicKey,
-			privateKey: config.privateKey,
-		});
-
-		const token = await createAccessToken({
+		let tokenSession = await createTokenSession({
 			baseUrl: config.baseUrl,
 			tenantId: config.tenantId,
 			apiKey: config.apiKey,
 			origin: config.origin,
-			assertionToken,
-		});
-
-		const http = createApiHttpClient({
-			baseUrl: config.baseUrl,
-			tenantId: config.tenantId,
-			apiKey: config.apiKey,
-			accessToken: token.access_token,
+			publicKey: config.publicKey,
+			privateKey: config.privateKey,
 		});
 
 		console.log(
@@ -102,7 +70,7 @@ export async function runProjectReportAvailableTask(
 			`[task:project-report-available] fetching defects for project_id=${projectId}`,
 		);
 
-		const defectsResponse = await http
+		const defectsResponse = await tokenSession.http
 			.get<unknown[]>(`/projects/${projectId}/defects`)
 			.catch((error: unknown) => {
 				throw normalizeApiClientError(error, "Defects fetch");
@@ -128,26 +96,40 @@ export async function runProjectReportAvailableTask(
 		const resolvedDefects: Array<Record<string, unknown>> = [];
 
 		for (const [index, defectItem] of defectsResponse.data.entries()) {
+			if (Date.now() >= tokenSession.expiresAtMs - TOKEN_REFRESH_BUFFER_MS) {
+				console.log(
+					`[task:project-report-available] refreshing access token before defect_index=${index}`,
+				);
+				tokenSession = await createTokenSession({
+					baseUrl: config.baseUrl,
+					tenantId: config.tenantId,
+					apiKey: config.apiKey,
+					origin: config.origin,
+					publicKey: config.publicKey,
+					privateKey: config.privateKey,
+				});
+			}
+
 			const { image_id, image_object_id, image_object_type_id } =
 				parseDefectItem(defectItem);
 
 			const [imageResponse, imageObjectResponse, imageObjectTypeResponse] =
 				await Promise.all([
-					http
+					tokenSession.http
 						.get<Record<string, unknown>>(
 							`/projects/${projectId}/images/${image_id}`,
 						)
 						.catch((error: unknown) => {
 							throw normalizeApiClientError(error, "Image fetch");
 						}),
-					http
+					tokenSession.http
 						.get<Record<string, unknown>>(
 							`/projects/${projectId}/image_objects/${image_object_id}`,
 						)
 						.catch((error: unknown) => {
 							throw normalizeApiClientError(error, "Image object fetch");
 						}),
-					http
+					tokenSession.http
 						.get<Record<string, unknown>>(
 							`/projects/${projectId}/image_object_types/${image_object_type_id}`,
 						)
@@ -164,9 +146,7 @@ export async function runProjectReportAvailableTask(
 			};
 
 			console.log(
-				`[task:project-report-available] resolved defect_index=${index}. ${JSON.stringify(
-					data,
-				)}`,
+				`[task:project-report-available] resolved defect_index=${index}`,
 			);
 
 			resolvedDefects.push(data);

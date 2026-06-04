@@ -49,7 +49,7 @@ npm run scenario -- <scenario-name> [args...]
 Available scenarios:
 
 - `get-project <project_id>`
-- `get-projects`
+- `get-projects [status_name]`
 - `get-images <project_id>`
 - `get-image-objects <project_id> <image_id>`
 - `get-image-object-types <project_id> <image_id>`
@@ -130,11 +130,26 @@ Optional port override:
 WEBHOOK_PORT=9999 npm run server
 ```
 
+Expose local webhook server with cloudflared (macOS CLI):
+
+```bash
+brew install cloudflared
+npm run server
+cloudflared tunnel --url http://localhost:8787
+```
+
+cloudflared prints a public `https://<random>.trycloudflare.com` URL you can use as the webhook endpoint target.
+
+Notes:
+
+- Keep the generated tunnel URL private.
+- Stop and restart the tunnel when you want a new URL.
+
 Available webhook endpoints:
 
 - `POST /ping` - Test that integration works
-- `POST /project-report-available` - Get information about all defects in a project
-- `POST /project-archived` - Get information about all defects and objects in a project
+- `POST /project-report-available` - Get information about all defects in a project. Rotates access when about to expire.
+- `POST /project-archived` - Get image, image objects, and image object types for all project images
 - `POST /urgent-deficiency` - Get information about a defect
 
 Background task behavior:
