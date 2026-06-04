@@ -4,16 +4,10 @@ import {
 	createTokenSession,
 	formatElapsedMinutesSeconds,
 	getRequiredNonNegativeInteger,
-	readNonNegativeIntegerFromKeys,
 	TOKEN_REFRESH_BUFFER_MS,
 } from "./utils.js";
 
 type ProjectArchivedPayload = Record<string, unknown>;
-
-function getImageId(raw: unknown): number {
-	const input = (raw || {}) as Record<string, unknown>;
-	return readNonNegativeIntegerFromKeys(input, ["image_id", "id"]);
-}
 
 function collectIds(rawList: unknown, preferredKey: string): number[] {
 	if (!Array.isArray(rawList)) {
@@ -21,8 +15,7 @@ function collectIds(rawList: unknown, preferredKey: string): number[] {
 	}
 
 	const ids = rawList.map((entry) => {
-		const input = (entry || {}) as Record<string, unknown>;
-		return readNonNegativeIntegerFromKeys(input, [preferredKey, "id"]);
+		return getRequiredNonNegativeInteger(entry, [preferredKey, "id"]);
 	});
 
 	return [...new Set(ids)];
@@ -94,7 +87,7 @@ export async function runProjectArchivedTask(
 				});
 			}
 
-			const imageId = getImageId(rawImageId);
+			const imageId = Number(rawImageId);
 
 			// First stage: fetch image + image_objects list + image_object_types list.
 			const [

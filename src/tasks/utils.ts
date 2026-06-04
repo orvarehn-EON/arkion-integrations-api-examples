@@ -10,36 +10,36 @@ export interface TaskTokenSession {
 export const TOKEN_REFRESH_BUFFER_MS = 60_000;
 
 export function getRequiredNonNegativeInteger(
-	payload: Record<string, unknown>,
-	fieldName: string,
+	input: unknown,
+	fieldNames?: string | string[],
 ): number {
-	const raw = payload[fieldName];
-	const parsed = Number(raw);
-	if (!Number.isInteger(parsed) || parsed < 0) {
-		throw new Error(
-			`Payload field ${fieldName} must be a non-negative integer. Received: ${String(
-				raw,
-			)}`,
-		);
+	if (fieldNames === undefined) {
+		const parsed = Number(input);
+		if (!Number.isInteger(parsed) || parsed < 0) {
+			throw new Error(
+				`Expected a non-negative integer. Received: ${String(input)}`,
+			);
+		}
+		return parsed;
 	}
-	return parsed;
-}
 
-export function readNonNegativeIntegerFromKeys(
-	input: Record<string, unknown>,
-	keys: string[],
-): number {
+	const keys = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+	const record = (input || {}) as Record<string, unknown>;
+
 	for (const key of keys) {
-		const value = Number(input[key]);
-		if (Number.isInteger(value) && value >= 0) {
-			return value;
+		const parsed = Number(record[key]);
+		if (Number.isInteger(parsed) && parsed >= 0) {
+			return parsed;
 		}
 	}
 
+	const rawValues = keys
+		.map((key) => `${key}=${String(record[key])}`)
+		.join(", ");
 	throw new Error(
-		`Could not find a non-negative integer using any of keys: ${keys.join(
+		`Expected a non-negative integer in one of [${keys.join(
 			", ",
-		)}`,
+		)}]. Received: ${rawValues}`,
 	);
 }
 
