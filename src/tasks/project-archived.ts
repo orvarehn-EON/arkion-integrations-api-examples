@@ -8,6 +8,7 @@ import {
 } from "./utils.js";
 
 type ProjectArchivedPayload = Record<string, unknown>;
+const IMAGES_PAGE_LIMIT = 10000;
 
 export async function runProjectArchivedTask(
 	payload: ProjectArchivedPayload,
@@ -35,17 +36,62 @@ export async function runProjectArchivedTask(
 			`[task:project-archived] fetching images for project_id=${projectId}`,
 		);
 
-		const imagesResponse = await tokenSession.http
-			.get<unknown[]>(`/projects/${projectId}/images`)
-			.catch((error: unknown) => {
-				throw normalizeApiClientError(error, "Images fetch");
-			});
+		const allImageIds: unknown[] = [];
+		let afterId: number | undefined;
+
+		while (true) {
+			if (Date.now() >= tokenSession.expiresAtMs - TOKEN_REFRESH_BUFFER_MS) {
+				console.log(
+					`[task:project-archived] refreshing access token before images_page_after_id=${String(
+						afterId,
+					)}`,
+				);
+				tokenSession = await createTokenSession({
+					baseUrl: config.baseUrl,
+					tenantId: config.tenantId,
+					apiKey: config.apiKey,
+					origin: config.origin,
+					publicKey: config.publicKey,
+					privateKey: config.privateKey,
+				});
+			}
+
+			const imagesPage = await tokenSession.http
+				.get<unknown[]>(`/projects/${projectId}/images`, {
+					params: {
+						limit: IMAGES_PAGE_LIMIT,
+						after_id: afterId,
+					},
+				})
+				.then((response) => response.data)
+				.catch((error: unknown) => {
+					throw normalizeApiClientError(
+						error,
+						`Images fetch (limit=${IMAGES_PAGE_LIMIT}, after_id=${String(
+							afterId,
+						)})`,
+					);
+				});
+
+			console.log(
+				`[task:project-archived] images page fetched after_id=${String(
+					afterId,
+				)} count=${imagesPage.length}`,
+			);
+
+			allImageIds.push(...imagesPage);
+
+			if (imagesPage.length < IMAGES_PAGE_LIMIT) {
+				break;
+			}
+			afterId = Number(imagesPage[imagesPage.length - 1]);
+		}
 
 		console.log(
-			`[task:project-archived] images fetched count=${imagesResponse.data.length}`,
+			`[task:project-archived] images fetched count=${allImageIds.length}`,
 		);
 
-		if (imagesResponse.data.length === 0) {
+		if (allImageIds.length === 0) {
 			const elapsedMs = Date.now() - startMs;
 			console.log(
 				"[task:project-archived] no images returned; nothing to resolve",
@@ -60,7 +106,7 @@ export async function runProjectArchivedTask(
 
 		const resolvedImages: Array<Record<string, unknown>> = [];
 
-		for (const [index, imageId] of imagesResponse.data.entries()) {
+		for (const [index, imageId] of allImageIds.entries()) {
 			if (Date.now() >= tokenSession.expiresAtMs - TOKEN_REFRESH_BUFFER_MS) {
 				console.log(
 					`[task:project-archived] refreshing access token before image_index=${index}`,

@@ -8,6 +8,7 @@ import {
 } from "./utils.js";
 
 type ProjectReportAvailablePayload = Record<string, unknown>;
+const DEFECTS_PAGE_LIMIT = 1000;
 
 interface DefectItem {
 	image_id: number;
@@ -70,17 +71,64 @@ export async function runProjectReportAvailableTask(
 			`[task:project-report-available] fetching defects for project_id=${projectId}`,
 		);
 
-		const defectsResponse = await tokenSession.http
-			.get<unknown[]>(`/projects/${projectId}/defects`)
-			.catch((error: unknown) => {
-				throw normalizeApiClientError(error, "Defects fetch");
-			});
+		const allDefects: unknown[] = [];
+		let afterId: number | undefined;
+
+		while (true) {
+			if (Date.now() >= tokenSession.expiresAtMs - TOKEN_REFRESH_BUFFER_MS) {
+				console.log(
+					`[task:project-report-available] refreshing access token before defects_page_after_id=${String(
+						afterId,
+					)}`,
+				);
+				tokenSession = await createTokenSession({
+					baseUrl: config.baseUrl,
+					tenantId: config.tenantId,
+					apiKey: config.apiKey,
+					origin: config.origin,
+					publicKey: config.publicKey,
+					privateKey: config.privateKey,
+				});
+			}
+
+			const defectsPage = await tokenSession.http
+				.get<DefectItem[]>(`/projects/${projectId}/defects`, {
+					params: {
+						limit: DEFECTS_PAGE_LIMIT,
+						after_id: afterId,
+					},
+				})
+				.then((response) => response.data)
+				.catch((error: unknown) => {
+					throw normalizeApiClientError(
+						error,
+						`Defects fetch (limit=${DEFECTS_PAGE_LIMIT}, after_id=${String(
+							afterId,
+						)})`,
+					);
+				});
+
+			console.log(
+				`[task:project-report-available] defects page fetched after_id=${String(
+					afterId,
+				)} count=${defectsPage.length}`,
+			);
+
+			allDefects.push(...defectsPage);
+
+			if (defectsPage.length < DEFECTS_PAGE_LIMIT) {
+				break;
+			}
+			afterId = Number(
+				defectsPage[defectsPage.length - 1].image_object_type_id,
+			);
+		}
 
 		console.log(
-			`[task:project-report-available] defects fetched count=${defectsResponse.data.length}`,
+			`[task:project-report-available] defects fetched count=${allDefects.length}`,
 		);
 
-		if (defectsResponse.data.length === 0) {
+		if (allDefects.length === 0) {
 			console.log(
 				"[task:project-report-available] no defects returned; nothing to resolve",
 			);
@@ -95,7 +143,7 @@ export async function runProjectReportAvailableTask(
 
 		const resolvedDefects: Array<Record<string, unknown>> = [];
 
-		for (const [index, defectItem] of defectsResponse.data.entries()) {
+		for (const [index, defectItem] of allDefects.entries()) {
 			if (Date.now() >= tokenSession.expiresAtMs - TOKEN_REFRESH_BUFFER_MS) {
 				console.log(
 					`[task:project-report-available] refreshing access token before defect_index=${index}`,
