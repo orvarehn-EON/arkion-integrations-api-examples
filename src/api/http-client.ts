@@ -1,4 +1,239 @@
-import axios, { AxiosError, type AxiosInstance } from "axios";
+import axios, {
+	AxiosError,
+	type AxiosInstance,
+	type AxiosRequestConfig,
+} from "axios";
+
+const MAX_USAGE_PLAN_RETRIES = 4;
+const BASE_RETRY_DELAY_MS = 250;
+const MAX_RETRY_DELAY_MS = 5_000;
+
+type ApiGateway429Kind =
+	| "QUOTA_EXCEEDED"
+	| "BURST"
+	| "THROTTLED"
+	| "UNKNOWN_429";
+
+interface ApiGateway429Classification {
+	kind: ApiGateway429Kind;
+	source: string;
+	errorType?: string;
+	message?: string;
+}
+
+function wait(ms: number): Promise<void> {
+	return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function toSingleHeaderValue(value: unknown): string | undefined {
+	if (Array.isArray(value)) {
+		return value[0];
+	}
+	return typeof value === "string" ? value : undefined;
+}
+
+function parseRetryAfterMs(value: unknown): number | undefined {
+	const raw = toSingleHeaderValue(value);
+	if (!raw) {
+		return undefined;
+	}
+
+	const asSeconds = Number(raw);
+	if (Number.isFinite(asSeconds) && asSeconds >= 0) {
+		return Math.floor(asSeconds * 1000);
+	}
+
+	const asDateMs = Date.parse(raw);
+	if (Number.isFinite(asDateMs)) {
+		return Math.max(asDateMs - Date.now(), 0);
+	}
+
+	return undefined;
+}
+
+function computeRetryDelayMs(error: AxiosError, attempt: number): number {
+	const retryAfterMs = parseRetryAfterMs(
+		error.response?.headers?.["retry-after"],
+	);
+	if (retryAfterMs !== undefined) {
+		return Math.min(retryAfterMs, MAX_RETRY_DELAY_MS);
+	}
+
+	const cappedAttempt = Math.min(attempt, 10);
+	const exponentialDelay = BASE_RETRY_DELAY_MS * 2 ** (cappedAttempt - 1);
+	const jitter = Math.floor(Math.random() * BASE_RETRY_DELAY_MS);
+	return Math.min(exponentialDelay + jitter, MAX_RETRY_DELAY_MS);
+}
+
+function isApiGatewayUsagePlan429(error: unknown): error is AxiosError {
+	return error instanceof AxiosError && error.response?.status === 429;
+}
+
+function extractPayloadMessage(payload: unknown): string | undefined {
+	if (!payload || typeof payload !== "object") {
+		return undefined;
+	}
+
+	const record = payload as Record<string, unknown>;
+	const message = record.message;
+	return typeof message === "string" ? message : undefined;
+}
+
+function extractApiGatewayErrorType(error: AxiosError): string | undefined {
+	const rawHeader =
+		error.response?.headers?.["x-amzn-errortype"] ??
+		error.response?.headers?.["X-Amzn-Errortype"];
+	const headerValue = toSingleHeaderValue(rawHeader);
+	if (!headerValue) {
+		return undefined;
+	}
+
+	// AWS often appends metadata after ':'
+	return headerValue.split(":")[0]?.trim();
+}
+
+function classifyApiGateway429(error: AxiosError): ApiGateway429Classification {
+	const payloadMessage = extractPayloadMessage(error.response?.data);
+	const messageLower = payloadMessage?.toLowerCase();
+	const errorType = extractApiGatewayErrorType(error);
+	const errorTypeLower = errorType?.toLowerCase();
+
+	if (
+		errorTypeLower?.includes("quota") ||
+		messageLower?.includes("quota") ||
+		messageLower?.includes("monthly")
+	) {
+		return {
+			kind: "QUOTA_EXCEEDED",
+			source: errorType ? "x-amzn-errortype" : "payload.message",
+			errorType,
+			message: payloadMessage,
+		};
+	}
+
+	if (messageLower?.includes("burst")) {
+		return {
+			kind: "BURST",
+			source: "payload.message",
+			errorType,
+			message: payloadMessage,
+		};
+	}
+
+	if (
+		errorTypeLower?.includes("toomanyrequest") ||
+		errorTypeLower?.includes("limitexceeded") ||
+		messageLower?.includes("too many requests") ||
+		messageLower?.includes("throttle") ||
+		messageLower?.includes("rate exceeded") ||
+		messageLower?.includes("limit exceeded")
+	) {
+		return {
+			kind: "THROTTLED",
+			source: errorType ? "x-amzn-errortype" : "payload.message",
+			errorType,
+			message: payloadMessage,
+		};
+	}
+
+	return {
+		kind: "UNKNOWN_429",
+		source: "fallback",
+		errorType,
+		message: payloadMessage,
+	};
+}
+
+function isRetryableApiGateway429(kind: ApiGateway429Kind): boolean {
+	// Retry only explicitly known transient classes.
+	return kind === "BURST" || kind === "THROTTLED";
+}
+
+type RetryableRequestConfig = AxiosRequestConfig & {
+	__usagePlanRetryCount?: number;
+};
+
+function attachUsagePlanRetryInterceptor(client: AxiosInstance): void {
+	client.interceptors.response.use(
+		(response) => response,
+		async (error: unknown) => {
+			if (!isApiGatewayUsagePlan429(error)) {
+				return Promise.reject(error);
+			}
+
+			const classification = classifyApiGateway429(error);
+			if (!isRetryableApiGateway429(classification.kind)) {
+				console.warn(
+					`[api-client] 429 received kind=${classification.kind} source=${classification.source}; skipping retry`,
+				);
+				return Promise.reject(error);
+			}
+
+			const config = error.config as RetryableRequestConfig | undefined;
+			if (!config) {
+				console.warn(
+					`[api-client] 429 received kind=${classification.kind} source=${classification.source}; retry not possible (missing request config)`,
+				);
+				return Promise.reject(error);
+			}
+
+			const nextRetryCount = (config.__usagePlanRetryCount ?? 0) + 1;
+			if (nextRetryCount > MAX_USAGE_PLAN_RETRIES) {
+				console.warn(
+					`[api-client] 429 received kind=${classification.kind} source=${classification.source}; retry budget exhausted attempts=${MAX_USAGE_PLAN_RETRIES}`,
+				);
+				return Promise.reject(error);
+			}
+
+			config.__usagePlanRetryCount = nextRetryCount;
+			const delayMs = computeRetryDelayMs(error, nextRetryCount);
+			console.warn(
+				`[api-client] 429 received kind=${classification.kind} source=${classification.source} retrying request attempt=${nextRetryCount}/${MAX_USAGE_PLAN_RETRIES} delay_ms=${delayMs}`,
+			);
+			await wait(delayMs);
+			return client.request(config);
+		},
+	);
+}
+
+export async function executeWithUsagePlanRetry<T>(input: {
+	request: () => Promise<T>;
+	context: string;
+}): Promise<T> {
+	for (let attempt = 1; attempt <= MAX_USAGE_PLAN_RETRIES + 1; attempt += 1) {
+		try {
+			return await input.request();
+		} catch (error: unknown) {
+			if (!isApiGatewayUsagePlan429(error)) {
+				throw error;
+			}
+
+			const classification = classifyApiGateway429(error);
+
+			if (attempt > MAX_USAGE_PLAN_RETRIES) {
+				console.warn(
+					`[api-client] ${input.context} received 429 kind=${classification.kind} source=${classification.source}; retry budget exhausted attempts=${MAX_USAGE_PLAN_RETRIES}`,
+				);
+				throw error;
+			}
+
+			if (!isRetryableApiGateway429(classification.kind)) {
+				console.warn(
+					`[api-client] ${input.context} received 429 kind=${classification.kind} source=${classification.source}; skipping retry`,
+				);
+				throw error;
+			}
+
+			const delayMs = computeRetryDelayMs(error, attempt);
+			console.warn(
+				`[api-client] ${input.context} received 429 kind=${classification.kind} source=${classification.source} retrying attempt=${attempt}/${MAX_USAGE_PLAN_RETRIES} delay_ms=${delayMs}`,
+			);
+			await wait(delayMs);
+		}
+	}
+
+	throw new Error(`Unexpected retry loop exit for context: ${input.context}`);
+}
 
 export function createApiHttpClient(input: {
 	baseUrl: string;
@@ -6,13 +241,17 @@ export function createApiHttpClient(input: {
 	apiKey: string;
 	accessToken: string;
 }): AxiosInstance {
-	return axios.create({
+	const client = axios.create({
 		baseURL: `${input.baseUrl}/tenant/${encodeURIComponent(input.tenantId)}`,
 		headers: {
 			"x-api-key": input.apiKey,
 			Authorization: `Bearer ${input.accessToken}`,
 		},
 	});
+
+	attachUsagePlanRetryInterceptor(client);
+
+	return client;
 }
 
 export function normalizeApiClientError(
@@ -25,10 +264,21 @@ export function normalizeApiClientError(
 		const payload = error.response?.data;
 		const detail =
 			payload === undefined ? "No response payload." : JSON.stringify(payload);
+		const rateLimitHint = (() => {
+			if (status !== 429) {
+				return "";
+			}
+
+			const classification = classifyApiGateway429(error);
+			const errorTypePart = classification.errorType
+				? `, error_type=${classification.errorType}`
+				: "";
+			return ` API Gateway usage plan limit hit (kind=${classification.kind}, source=${classification.source}${errorTypePart}).`;
+		})();
 		return new Error(
 			`${context} failed (${status || "unknown"} ${
 				statusText || ""
-			}). Details: ${detail}`,
+			}).${rateLimitHint} Details: ${detail}`,
 		);
 	}
 

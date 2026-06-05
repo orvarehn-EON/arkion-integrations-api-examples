@@ -48,6 +48,7 @@ npm run scenario -- <scenario-name> [args...]
 
 Available scenarios:
 
+- `get-assertion-token`
 - `get-access-token`
 - `get-project <project_id>`
 - `get-projects [status_name]`
@@ -100,6 +101,22 @@ curl -X GET "https://integrations-gateway.dev.arkion.co/tenant/<tenant_id>/proje
 - Assertion token is generated at runtime from `.env` keys (`PUBLIC_KEY`, `PRIVATE_KEY`).
 - If you receive `token_expired` or `invalid_token`, request a new token and retry.
 - If you receive `project_access_denied`, use a tenant token that has access to the project.
+
+## AWS API Gateway Usage Plan Limits
+
+When the integrations endpoint is behind AWS API Gateway usage plans:
+
+- Throttling (RPS or burst limits) returns HTTP `429` (`THROTTLED`).
+- Quota exceeded (for example monthly quota) also returns HTTP `429` (`QUOTA_EXCEEDED`).
+- API Gateway may include `Retry-After`, and throttling/quota are applied on a best-effort basis.
+
+This example client handles those cases by:
+
+- Classifying HTTP `429` responses using API Gateway header/body hints (`x-amzn-errortype`, response message) as `THROTTLED`, `QUOTA_EXCEEDED`, or `BURST` when available.
+- Retrying retryable `429` responses with exponential backoff + jitter.
+- Skipping retries for `QUOTA_EXCEEDED` (not transient until quota window resets).
+- Respecting `Retry-After` when present.
+- Surfacing a clear error hint when retries are exhausted.
 
 ## Webhook Receiver Example
 

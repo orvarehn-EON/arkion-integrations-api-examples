@@ -15,9 +15,6 @@ async function main(): Promise<void> {
 
 	console.log("Generating assertion token from PRIVATE_KEY/PUBLIC_KEY...");
 	const assertionToken = await generateAssertionToken({
-		baseUrl: config.baseUrl,
-		tenantId: config.tenantId,
-		publicKey: config.publicKey,
 		privateKey: config.privateKey,
 	});
 

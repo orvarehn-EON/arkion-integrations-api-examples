@@ -59,9 +59,6 @@ export async function createTokenSession(input: {
 	privateKey: string;
 }): Promise<TaskTokenSession> {
 	const assertionToken = await generateAssertionToken({
-		baseUrl: input.baseUrl,
-		tenantId: input.tenantId,
-		publicKey: input.publicKey,
 		privateKey: input.privateKey,
 	});
 

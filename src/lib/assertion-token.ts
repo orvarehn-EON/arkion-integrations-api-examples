@@ -1,9 +1,6 @@
 import { SignJWT, importPKCS8 } from "jose";
 
 export async function generateAssertionToken(input: {
-	baseUrl: string;
-	tenantId: string;
-	publicKey: string;
 	privateKey: string;
 }): Promise<string> {
 	const now = Math.floor(Date.now() / 1000);

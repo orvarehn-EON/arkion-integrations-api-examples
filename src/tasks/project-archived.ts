@@ -9,18 +9,6 @@ import {
 
 type ProjectArchivedPayload = Record<string, unknown>;
 
-function collectIds(rawList: unknown, preferredKey: string): number[] {
-	if (!Array.isArray(rawList)) {
-		throw new Error("Expected an array response when collecting ids.");
-	}
-
-	const ids = rawList.map((entry) => {
-		return getRequiredNonNegativeInteger(entry, [preferredKey, "id"]);
-	});
-
-	return [...new Set(ids)];
-}
-
 export async function runProjectArchivedTask(
 	payload: ProjectArchivedPayload,
 ): Promise<void> {
@@ -72,7 +60,7 @@ export async function runProjectArchivedTask(
 
 		const resolvedImages: Array<Record<string, unknown>> = [];
 
-		for (const [index, rawImageId] of imagesResponse.data.entries()) {
+		for (const [index, imageId] of imagesResponse.data.entries()) {
 			if (Date.now() >= tokenSession.expiresAtMs - TOKEN_REFRESH_BUFFER_MS) {
 				console.log(
 					`[task:project-archived] refreshing access token before image_index=${index}`,
@@ -86,9 +74,6 @@ export async function runProjectArchivedTask(
 					privateKey: config.privateKey,
 				});
 			}
-
-			const imageId = Number(rawImageId);
-
 			// First stage: fetch image + image_objects list + image_object_types list.
 			const [
 				imageResponse,
@@ -121,19 +106,10 @@ export async function runProjectArchivedTask(
 					}),
 			]);
 
-			const imageObjectIds = collectIds(
-				imageObjectsListResponse.data,
-				"image_object_id",
-			);
-			const imageObjectTypeIds = collectIds(
-				imageObjectTypesListResponse.data,
-				"image_object_type_id",
-			);
-
 			// Second stage: fetch each image object and image object type by id.
 			const [imageObjects, imageObjectTypes] = await Promise.all([
 				Promise.all(
-					imageObjectIds.map((imageObjectId) =>
+					imageObjectsListResponse.data.map((imageObjectId) =>
 						tokenSession.http
 							.get<Record<string, unknown>>(
 								`/projects/${projectId}/image_objects/${imageObjectId}`,
@@ -145,7 +121,7 @@ export async function runProjectArchivedTask(
 					),
 				),
 				Promise.all(
-					imageObjectTypeIds.map((imageObjectTypeId) =>
+					imageObjectTypesListResponse.data.map((imageObjectTypeId) =>
 						tokenSession.http
 							.get<Record<string, unknown>>(
 								`/projects/${projectId}/image_object_types/${imageObjectTypeId}`,
