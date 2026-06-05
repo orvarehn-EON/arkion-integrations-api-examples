@@ -109,7 +109,7 @@ export async function runProjectArchivedTask(
 		for (const [index, imageId] of allImageIds.entries()) {
 			if (Date.now() >= tokenSession.expiresAtMs - TOKEN_REFRESH_BUFFER_MS) {
 				console.log(
-					`[task:project-archived] refreshing access token before image_index=${index}`,
+					`[task:project-archived] refreshing access token before image_index=${index}, imageId=${imageId}`,
 				);
 				tokenSession = await createTokenSession({
 					baseUrl: config.baseUrl,
@@ -121,64 +121,34 @@ export async function runProjectArchivedTask(
 				});
 			}
 			// First stage: fetch image + image_objects list + image_object_types list.
-			const [
-				imageResponse,
-				imageObjectsListResponse,
-				imageObjectTypesListResponse,
-			] = await Promise.all([
-				tokenSession.http
-					.get<Record<string, unknown>>(
-						`/projects/${projectId}/images/${imageId}`,
-					)
-					.catch((error: unknown) => {
-						throw normalizeApiClientError(error, "Image detail fetch");
-					}),
-				tokenSession.http
-					.get<unknown[]>(
-						`/projects/${projectId}/images/${imageId}/image_objects`,
-					)
-					.catch((error: unknown) => {
-						throw normalizeApiClientError(error, "Image objects list fetch");
-					}),
-				tokenSession.http
-					.get<unknown[]>(
-						`/projects/${projectId}/images/${imageId}/image_object_types`,
-					)
-					.catch((error: unknown) => {
-						throw normalizeApiClientError(
-							error,
-							"Image object types list fetch",
-						);
-					}),
-			]);
-
-			// Second stage: fetch each image object and image object type by id.
-			const [imageObjects, imageObjectTypes] = await Promise.all([
-				Promise.all(
-					imageObjectsListResponse.data.map((imageObjectId) =>
-						tokenSession.http
-							.get<Record<string, unknown>>(
-								`/projects/${projectId}/image_objects/${imageObjectId}`,
-							)
-							.then((response) => response.data)
-							.catch((error: unknown) => {
-								throw normalizeApiClientError(error, "Image object fetch");
-							}),
-					),
-				),
-				Promise.all(
-					imageObjectTypesListResponse.data.map((imageObjectTypeId) =>
-						tokenSession.http
-							.get<Record<string, unknown>>(
-								`/projects/${projectId}/image_object_types/${imageObjectTypeId}`,
-							)
-							.then((response) => response.data)
-							.catch((error: unknown) => {
-								throw normalizeApiClientError(error, "Image object type fetch");
-							}),
-					),
-				),
-			]);
+			const [imageResponse, imageObjects, imageObjectTypes] = await Promise.all(
+				[
+					tokenSession.http
+						.get<Record<string, unknown>>(
+							`/projects/${projectId}/images/${imageId}`,
+						)
+						.catch((error: unknown) => {
+							throw normalizeApiClientError(error, "Image detail fetch");
+						}),
+					tokenSession.http
+						.get<unknown[]>(
+							`/projects/${projectId}/image_objects/image/${imageId}`,
+						)
+						.catch((error: unknown) => {
+							throw normalizeApiClientError(error, "Image objects list fetch");
+						}),
+					tokenSession.http
+						.get<unknown[]>(
+							`/projects/${projectId}/image_object_types/image/${imageId}`,
+						)
+						.catch((error: unknown) => {
+							throw normalizeApiClientError(
+								error,
+								"Image object types list fetch",
+							);
+						}),
+				],
+			);
 
 			resolvedImages.push({
 				image_id: imageId,
@@ -187,7 +157,9 @@ export async function runProjectArchivedTask(
 				image_object_types: imageObjectTypes,
 			});
 
-			console.log(`[task:project-archived] resolved image_index=${index}`);
+			console.log(
+				`[task:project-archived] resolved image_index=${index}, imageId=${imageId}`,
+			);
 		}
 
 		console.log(
