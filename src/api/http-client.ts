@@ -69,6 +69,10 @@ function isApiGatewayUsagePlan429(error: unknown): error is AxiosError {
 	return error instanceof AxiosError && error.response?.status === 429;
 }
 
+function isApiGatewayGatewayTimeout504(error: unknown): error is AxiosError {
+	return error instanceof AxiosError && error.response?.status === 504;
+}
+
 function extractPayloadMessage(payload: unknown): string | undefined {
 	if (!payload || typeof payload !== "object") {
 		return undefined;
@@ -149,6 +153,37 @@ function isRetryableApiGateway429(kind: ApiGateway429Kind): boolean {
 	return kind === "BURST" || kind === "THROTTLED";
 }
 
+function getRetryableGatewayContext(error: unknown):
+	| {
+			status: 429 | 504;
+			kind: string;
+			source: string;
+	  }
+	| undefined {
+	if (isApiGatewayUsagePlan429(error)) {
+		const classification = classifyApiGateway429(error);
+		if (!isRetryableApiGateway429(classification.kind)) {
+			return undefined;
+		}
+
+		return {
+			status: 429,
+			kind: classification.kind,
+			source: classification.source,
+		};
+	}
+
+	if (isApiGatewayGatewayTimeout504(error)) {
+		return {
+			status: 504,
+			kind: "GATEWAY_TIMEOUT",
+			source: "status_code",
+		};
+	}
+
+	return undefined;
+}
+
 type RetryableRequestConfig = AxiosRequestConfig & {
 	__usagePlanRetryCount?: number;
 };
@@ -157,22 +192,23 @@ function attachUsagePlanRetryInterceptor(client: AxiosInstance): void {
 	client.interceptors.response.use(
 		(response) => response,
 		async (error: unknown) => {
-			if (!isApiGatewayUsagePlan429(error)) {
+			const retryContext = getRetryableGatewayContext(error);
+			if (!retryContext) {
+				if (isApiGatewayUsagePlan429(error)) {
+					const classification = classifyApiGateway429(error);
+					console.warn(
+						`[api-client] 429 received kind=${classification.kind} source=${classification.source}; skipping retry`,
+					);
+				}
 				return Promise.reject(error);
 			}
 
-			const classification = classifyApiGateway429(error);
-			if (!isRetryableApiGateway429(classification.kind)) {
-				console.warn(
-					`[api-client] 429 received kind=${classification.kind} source=${classification.source}; skipping retry`,
-				);
-				return Promise.reject(error);
-			}
+			const axiosError = error as AxiosError;
 
-			const config = error.config as RetryableRequestConfig | undefined;
+			const config = axiosError.config as RetryableRequestConfig | undefined;
 			if (!config) {
 				console.warn(
-					`[api-client] 429 received kind=${classification.kind} source=${classification.source}; retry not possible (missing request config)`,
+					`[api-client] ${retryContext.status} received kind=${retryContext.kind} source=${retryContext.source}; retry not possible (missing request config)`,
 				);
 				return Promise.reject(error);
 			}
@@ -180,59 +216,20 @@ function attachUsagePlanRetryInterceptor(client: AxiosInstance): void {
 			const nextRetryCount = (config.__usagePlanRetryCount ?? 0) + 1;
 			if (nextRetryCount > MAX_USAGE_PLAN_RETRIES) {
 				console.warn(
-					`[api-client] 429 received kind=${classification.kind} source=${classification.source}; retry budget exhausted attempts=${MAX_USAGE_PLAN_RETRIES}`,
+					`[api-client] ${retryContext.status} received kind=${retryContext.kind} source=${retryContext.source}; retry budget exhausted attempts=${MAX_USAGE_PLAN_RETRIES}`,
 				);
 				return Promise.reject(error);
 			}
 
 			config.__usagePlanRetryCount = nextRetryCount;
-			const delayMs = computeRetryDelayMs(error, nextRetryCount);
+			const delayMs = computeRetryDelayMs(axiosError, nextRetryCount);
 			console.warn(
-				`[api-client] 429 received kind=${classification.kind} source=${classification.source} retrying request attempt=${nextRetryCount}/${MAX_USAGE_PLAN_RETRIES} delay_ms=${delayMs}`,
+				`[api-client] ${retryContext.status} received kind=${retryContext.kind} source=${retryContext.source} retrying request attempt=${nextRetryCount}/${MAX_USAGE_PLAN_RETRIES} delay_ms=${delayMs}`,
 			);
 			await wait(delayMs);
 			return client.request(config);
 		},
 	);
-}
-
-export async function executeWithUsagePlanRetry<T>(input: {
-	request: () => Promise<T>;
-	context: string;
-}): Promise<T> {
-	for (let attempt = 1; attempt <= MAX_USAGE_PLAN_RETRIES + 1; attempt += 1) {
-		try {
-			return await input.request();
-		} catch (error: unknown) {
-			if (!isApiGatewayUsagePlan429(error)) {
-				throw error;
-			}
-
-			const classification = classifyApiGateway429(error);
-
-			if (attempt > MAX_USAGE_PLAN_RETRIES) {
-				console.warn(
-					`[api-client] ${input.context} received 429 kind=${classification.kind} source=${classification.source}; retry budget exhausted attempts=${MAX_USAGE_PLAN_RETRIES}`,
-				);
-				throw error;
-			}
-
-			if (!isRetryableApiGateway429(classification.kind)) {
-				console.warn(
-					`[api-client] ${input.context} received 429 kind=${classification.kind} source=${classification.source}; skipping retry`,
-				);
-				throw error;
-			}
-
-			const delayMs = computeRetryDelayMs(error, attempt);
-			console.warn(
-				`[api-client] ${input.context} received 429 kind=${classification.kind} source=${classification.source} retrying attempt=${attempt}/${MAX_USAGE_PLAN_RETRIES} delay_ms=${delayMs}`,
-			);
-			await wait(delayMs);
-		}
-	}
-
-	throw new Error(`Unexpected retry loop exit for context: ${input.context}`);
 }
 
 export function createApiHttpClient(input: {
@@ -264,8 +261,11 @@ export function normalizeApiClientError(
 		const payload = error.response?.data;
 		const detail =
 			payload === undefined ? "No response payload." : JSON.stringify(payload);
-		const rateLimitHint = (() => {
+		const statusHint = (() => {
 			if (status !== 429) {
+				if (status === 504) {
+					return " API Gateway integration timed out or had upstream network issues (504).";
+				}
 				return "";
 			}
 
@@ -278,7 +278,7 @@ export function normalizeApiClientError(
 		return new Error(
 			`${context} failed (${status || "unknown"} ${
 				statusText || ""
-			}).${rateLimitHint} Details: ${detail}`,
+			}).${statusHint} Details: ${detail}`,
 		);
 	}
 

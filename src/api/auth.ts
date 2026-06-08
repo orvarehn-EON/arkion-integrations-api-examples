@@ -1,10 +1,7 @@
 import axios from "axios";
 import { decodeJwt } from "jose";
 import type { TokenResponse } from "../lib/types.js";
-import {
-	executeWithUsagePlanRetry,
-	normalizeApiClientError,
-} from "./http-client.js";
+import { normalizeApiClientError } from "./http-client.js";
 
 export async function createAccessToken(input: {
 	baseUrl: string;
@@ -23,19 +20,15 @@ export async function createAccessToken(input: {
 	}
 
 	try {
-		const response = await executeWithUsagePlanRetry({
-			context: "Token exchange",
-			request: () =>
-				axios.post<Partial<TokenResponse>>(
-					`${input.baseUrl}/tenant/${encodeURIComponent(
-						input.tenantId,
-					)}/auth/token`,
-					{ token: input.assertionToken },
-					{
-						headers,
-					},
-				),
-		});
+		const response = await axios.post<Partial<TokenResponse>>(
+			`${input.baseUrl}/tenant/${encodeURIComponent(
+				input.tenantId,
+			)}/auth/token`,
+			{ token: input.assertionToken },
+			{
+				headers,
+			},
+		);
 
 		const parsed = response.data;
 

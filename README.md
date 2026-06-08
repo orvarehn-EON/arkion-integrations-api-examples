@@ -115,6 +115,7 @@ This example client handles those cases by:
 - Classifying HTTP `429` responses using API Gateway header/body hints (`x-amzn-errortype`, response message) as `THROTTLED`, `QUOTA_EXCEEDED`, or `BURST` when available.
 - Retrying retryable `429` responses with exponential backoff + jitter.
 - Skipping retries for `QUOTA_EXCEEDED` (not transient until quota window resets).
+- Retrying HTTP `504` responses with the same exponential backoff + jitter strategy (treating gateway integration timeout/network issues as transient).
 - Respecting `Retry-After` when present.
 - Surfacing a clear error hint when retries are exhausted.
 
