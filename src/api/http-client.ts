@@ -3,10 +3,20 @@ import axios, {
 	type AxiosInstance,
 	type AxiosRequestConfig,
 } from "axios";
+import { Agent as HttpAgent } from "node:http";
+import { Agent as HttpsAgent } from "node:https";
 
 const MAX_USAGE_PLAN_RETRIES = 4;
 const BASE_RETRY_DELAY_MS = 250;
 const MAX_RETRY_DELAY_MS = 5_000;
+
+const sharedHttpAgent = new HttpAgent({
+	keepAlive: true,
+});
+
+const sharedHttpsAgent = new HttpsAgent({
+	keepAlive: true,
+});
 
 type ApiGateway429Kind =
 	| "QUOTA_EXCEEDED"
@@ -244,6 +254,8 @@ export function createApiHttpClient(input: {
 			"x-api-key": input.apiKey,
 			Authorization: `Bearer ${input.accessToken}`,
 		},
+		httpAgent: sharedHttpAgent,
+		httpsAgent: sharedHttpsAgent,
 	});
 
 	attachUsagePlanRetryInterceptor(client);
