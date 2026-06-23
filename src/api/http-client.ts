@@ -287,10 +287,21 @@ export function normalizeApiClientError(
 				: "";
 			return ` API Gateway usage plan limit hit (kind=${classification.kind}, source=${classification.source}${errorTypePart}).`;
 		})();
+
+		// Include axios error details for better diagnostics
+		const axiosDetails = (() => {
+			const parts: string[] = [];
+			if (error.code) parts.push(`code=${error.code}`);
+			if (error.message && !error.message.includes("No response payload"))
+				parts.push(`message=${error.message}`);
+			if (error.request && !error.response) parts.push("no_response_received");
+			return parts.length > 0 ? ` [${parts.join(", ")}]` : "";
+		})();
+
 		return new Error(
 			`${context} failed (${status || "unknown"} ${
 				statusText || ""
-			}).${statusHint} Details: ${detail}`,
+			}).${statusHint} Details: ${detail}${axiosDetails}`,
 		);
 	}
 
