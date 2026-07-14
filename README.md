@@ -182,8 +182,13 @@ Available scenarios:
 
 - `get-assertion-token`
 - `get-access-token`
+- `create-flight <project_id> <flight_folder> <name> <meta_json>`
 - `get-project <project_id>`
 - `get-projects [status_name]`
+- `get-flight <project_id> <flight_id>`
+- `get-presigned-upload-url <project_id> <filename> <flight_id>`
+- `upload-file <signed_url> <file_path>`
+- `start-import <project_id> <flight_id>`
 - `get-images <project_id>`
 - `get-image-objects <project_id> <image_id>`
 - `get-image-object-types <project_id> <image_id>`
@@ -193,6 +198,20 @@ Primary flow used by most scenarios:
 1. Exchange an assertion token for an access token:
 	- `POST /tenant/{tenant_id}/auth/token`
 2. Call the target tenant endpoint with bearer auth.
+
+Example:
+
+```bash
+npm run scenario -- create-flight 42 esDWlxd6Tfh "My flight" '{"additionalProp1":{}}'
+```
+
+```bash
+npm run scenario -- upload-file "https://example-presigned-url" "./path/to/file.jpg"
+```
+
+```bash
+npm run scenario -- start-import 42 123
+```
 
 ## Expected output
 
