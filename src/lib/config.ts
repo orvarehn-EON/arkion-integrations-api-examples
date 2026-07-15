@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 export interface BaseScenarioConfig {
 	baseUrl: string;
 	tenantId: string;
@@ -32,6 +34,33 @@ export interface PresignedUploadUrlScenarioConfig extends ScenarioConfig {
 
 export interface StartImportScenarioConfig extends ScenarioConfig {
 	flightId: number;
+}
+
+const updateProjectPayloadSchema = z
+	.object({
+		name: z.string(),
+		client_project_id: z.string(),
+		client_meta_json: z.string(),
+		year: z.number().int().nonnegative(),
+		status_id: z.number().int().nonnegative(),
+		region_id: z.number().int().nonnegative(),
+		date_flight: z.string(),
+		drone_operator: z.string(),
+		invoice_reference: z.string(),
+		order_comment: z.string(),
+		voltage: z.number().int().nonnegative(),
+		image_analysis: z.boolean(),
+		thermal_analysis: z.boolean(),
+		corrosion_analysis: z.boolean(),
+		lidar_analysis: z.boolean(),
+	})
+	.partial()
+	.strict();
+
+export type UpdateProjectPayload = z.infer<typeof updateProjectPayloadSchema>;
+
+export interface UpdateProjectScenarioConfig extends ScenarioConfig {
+	projectObject: UpdateProjectPayload;
 }
 
 function requireEnv(name: string): string {
@@ -233,6 +262,38 @@ export function parseStartImportScenarioConfig(
 		...parseBaseScenarioConfig(),
 		projectId: parseProjectId(rawProjectId),
 		flightId: parseRequiredNumber(rawFlightId, "flight_id"),
+	};
+}
+
+export function parseUpdateProjectScenarioConfig(
+	argv: string[],
+	scenarioName: string,
+): UpdateProjectScenarioConfig {
+	const rawProjectId = argv[2];
+	const rawProjectObject = argv[3];
+
+	if (!rawProjectId || !rawProjectObject) {
+		throw new Error(
+			`Usage: node dist/src/scenarios/${scenarioName}.js <project_id> <project_object_json>`,
+		);
+	}
+
+	const projectObject = updateProjectPayloadSchema.safeParse(
+		parseJsonObject(rawProjectObject, "project_object_json"),
+	);
+
+	if (!projectObject.success) {
+		throw new Error(
+			`Invalid project_object_json: ${projectObject.error.issues
+				.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
+				.join("; ")}`,
+		);
+	}
+
+	return {
+		...parseBaseScenarioConfig(),
+		projectId: parseProjectId(rawProjectId),
+		projectObject: projectObject.data,
 	};
 }
 

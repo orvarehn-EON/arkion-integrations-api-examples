@@ -191,6 +191,7 @@ Available scenarios:
 - `start-import <project_id> <flight_id>`
 - `get-inference-status <project_id> <flight_id>`
 - `list-flight-images <project_id> <flight_id>`
+- `update-project <project_id> <project_object_json>`
 - `get-images <project_id>`
 - `get-image-objects <project_id> <image_id>`
 - `get-image-object-types <project_id> <image_id>`
@@ -213,6 +214,10 @@ npm run scenario -- upload-file "https://example-presigned-url" "./path/to/file.
 
 ```bash
 npm run scenario -- start-import 42 123
+```
+
+```bash
+npm run scenario -- update-project 42 '{"name":"Updated project","status_id":1,"image_analysis":true}'
 ```
 
 ## Expected output
