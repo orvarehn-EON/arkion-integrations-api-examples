@@ -189,6 +189,8 @@ Available scenarios:
 - `get-presigned-upload-url <project_id> <filename> <flight_id>`
 - `upload-file <signed_url> <file_path>`
 - `start-import <project_id> <flight_id>`
+- `get-inference-status <project_id> <flight_id>`
+- `list-flight-images <project_id> <flight_id>`
 - `get-images <project_id>`
 - `get-image-objects <project_id> <image_id>`
 - `get-image-object-types <project_id> <image_id>`
