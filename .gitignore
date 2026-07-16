@@ -147,3 +147,10 @@ vite.config.ts.timestamp-*
 
 # Keys and certificates
 *.pem
+
+# Image files
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg

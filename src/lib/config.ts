@@ -63,6 +63,41 @@ export interface UpdateProjectScenarioConfig extends ScenarioConfig {
 	projectObject: UpdateProjectPayload;
 }
 
+const createProjectPayloadSchema = z
+	.object({
+		name: z.string(),
+		customer_id: z.number().int().nonnegative(),
+		client_project_id: z.string().optional(),
+		client_meta_json: z.string().optional(),
+		status_id: z.number().int().nonnegative().optional(),
+		type_id: z.number().int().nonnegative().optional(),
+		year: z.number().int().nonnegative().optional(),
+		region_id: z.number().int().nonnegative().optional(),
+		ai_template_id: z.number().int().nonnegative().optional(),
+		voltage: z.number().int().nonnegative().optional(),
+		image_analysis: z.boolean().optional(),
+		thermal_analysis: z.boolean().optional(),
+		corrosion_analysis: z.boolean().optional(),
+		lidar_analysis: z.boolean().optional(),
+		order_comment: z.string().optional(),
+		invoice_reference: z.string().optional(),
+		date_flight: z.string().optional(),
+		drone_operator: z.string().optional(),
+	})
+	.strict();
+
+export type CreateProjectPayload = z.infer<typeof createProjectPayloadSchema>;
+
+export interface CreateProjectScenarioConfig extends BaseScenarioConfig {
+	projectPayload: CreateProjectPayload;
+}
+
+export interface GetProjectByClientProjectIdScenarioConfig
+	extends BaseScenarioConfig {
+	customerId: number;
+	clientProjectId: string;
+}
+
 function requireEnv(name: string): string {
 	const value = process.env[name];
 	if (!value || value.trim().length === 0) {
@@ -294,6 +329,56 @@ export function parseUpdateProjectScenarioConfig(
 		...parseBaseScenarioConfig(),
 		projectId: parseProjectId(rawProjectId),
 		projectObject: projectObject.data,
+	};
+}
+
+export function parseCreateProjectScenarioConfig(
+	argv: string[],
+	scenarioName: string,
+): CreateProjectScenarioConfig {
+	const rawProjectPayload = argv[2];
+
+	if (!rawProjectPayload) {
+		throw new Error(
+			`Usage: node dist/src/scenarios/${scenarioName}.js <project_payload_json>`,
+		);
+	}
+
+	const projectPayload = createProjectPayloadSchema.safeParse(
+		parseJsonObject(rawProjectPayload, "project_payload_json"),
+	);
+
+	if (!projectPayload.success) {
+		throw new Error(
+			`Invalid project_payload_json: ${projectPayload.error.issues
+				.map((issue) => `${issue.path.join(".") || "<root>"}: ${issue.message}`)
+				.join("; ")}`,
+		);
+	}
+
+	return {
+		...parseBaseScenarioConfig(),
+		projectPayload: projectPayload.data,
+	};
+}
+
+export function parseGetProjectByClientProjectIdScenarioConfig(
+	argv: string[],
+	scenarioName: string,
+): GetProjectByClientProjectIdScenarioConfig {
+	const rawCustomerId = argv[2];
+	const rawClientProjectId = argv[3];
+
+	if (!rawCustomerId || !rawClientProjectId) {
+		throw new Error(
+			`Usage: node dist/src/scenarios/${scenarioName}.js <customer_id> <client_project_id>`,
+		);
+	}
+
+	return {
+		...parseBaseScenarioConfig(),
+		customerId: parseNonNegativeInteger(rawCustomerId, "customer_id"),
+		clientProjectId: parseRequiredString(rawClientProjectId, "client_project_id"),
 	};
 }
 

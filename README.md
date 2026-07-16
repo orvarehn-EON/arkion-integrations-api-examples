@@ -182,8 +182,10 @@ Available scenarios:
 
 - `get-assertion-token`
 - `get-access-token`
+- `create-project <project_payload_json>`
 - `create-flight <project_id> <flight_folder> <name> <meta_json>`
 - `get-project <project_id>`
+- `get-project-by-client-project-id <customer_id> <client_project_id>`
 - `get-projects [status_name]`
 - `get-flight <project_id> <flight_id>`
 - `get-presigned-upload-url <project_id> <filename> <flight_id>`
