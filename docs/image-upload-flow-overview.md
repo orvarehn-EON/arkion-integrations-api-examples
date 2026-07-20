@@ -5,13 +5,9 @@ flowchart TB
 	Client[Client]
 	TenantAdmin[Arkion Tenant Admin]
 	KeyPair[Generate public/private keypair]
-
-	subgraph CLIENT_AUTH_ROW[ ]
-		direction LR
-		ClientApp[Customer Client App]
-		AssertionToken[Create assertion token with private key]
-		ClientApp -->|0.3 Build assertion token| AssertionToken
-	end
+	ClientApp[Customer Client App]
+	AssertionToken[Create assertion token with private key]
+	ClientApp -->|0.3 Build assertion token| AssertionToken
 
 	Client ~~~ ClientApp
 
@@ -121,7 +117,6 @@ flowchart TB
 	style AWS fill:transparent
 	style INTEGRATIONS_TOP fill:transparent,stroke:transparent,color:transparent
 	style INTEGRATIONS_BODY fill:transparent,stroke:transparent,color:transparent
-	style CLIENT_AUTH_ROW fill:transparent,stroke:transparent,color:transparent
 	style DomainSpacer fill:transparent,stroke:transparent,color:transparent
 
 ```
