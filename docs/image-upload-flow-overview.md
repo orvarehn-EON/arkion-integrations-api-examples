@@ -18,7 +18,6 @@ flowchart TB
 	DomainNote -. note .- Domain
 
 	subgraph TENANT[Tenant Scope]
-		direction TB
 		Tenant[Tenant tenant_id]
 		CustProd[Customer A Production Customer]
 		CustSandbox[Customer A Sandbox Customer]
@@ -27,7 +26,6 @@ flowchart TB
 	end
 
 	subgraph CUSTOMERENV[Customer and Environment]
-		direction TB
 		CustList[Customers response: id and name]
 		NameCheck{Does customer name contain sandbox?}
 		UseProd[Use this customer_id for Production]
@@ -38,13 +36,11 @@ flowchart TB
 	end
 
 	subgraph SETUPAUTH[Setup and Auth]
-		direction TB
 		Auth[POST /tenant/:tenant_id/auth/token]
 		GetCustomers[GET /tenant/:tenant_id/customers]
 	end
 
 	subgraph IMAGEUPLOAD[Image Upload]
-		direction TB
 		CreateProject[POST /tenant/:tenant_id/projects]
 		CreateFlight[POST /tenant/:tenant_id/projects/:project_id/flights]
 		GetSignedUrl[GET /tenant/:tenant_id/projects/:project_id/upload/presigned_upload_url]
@@ -59,7 +55,6 @@ flowchart TB
 	UseSandbox -. used by .- ClientApp
 
 	subgraph AWS[Inference]
-		direction TB
 		S3[(AWS S3 Bucket)]
 		Worker[Inference Worker]
 		Db[(Database)]
