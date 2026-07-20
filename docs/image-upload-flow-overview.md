@@ -1,7 +1,6 @@
 # Image Upload Flow Overview
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': {'background': '#0b1020', 'lineColor': '#cbd5e1', 'textColor': '#e5e7eb', 'primaryTextColor': '#e5e7eb', 'clusterBkg': 'transparent', 'clusterBorder': '#6b7280'}}}%%
 flowchart TB
 	Client[Client]
 	TenantAdmin[Arkion Tenant Admin]
@@ -114,15 +113,15 @@ flowchart TB
 	ClientApp -->|6 Poll inference status| InferenceStatus
 	InferenceStatus --> Db
 
-	style INTEGRATIONS fill:transparent,stroke:#6b7280,stroke-width:1.2px
+	style INTEGRATIONS fill:transparent
+	style TENANT fill:transparent
+	style CUSTOMERENV fill:transparent
+	style SETUPAUTH fill:transparent
+	style IMAGEUPLOAD fill:transparent
+	style AWS fill:transparent
 	style INTEGRATIONS_TOP fill:transparent,stroke:transparent,color:transparent
 	style INTEGRATIONS_BODY fill:transparent,stroke:transparent,color:transparent
 	style CLIENT_AUTH_ROW fill:transparent,stroke:transparent,color:transparent
-	style TENANT fill:transparent,stroke:#6b7280,stroke-width:1px
-	style CUSTOMERENV fill:transparent,stroke:#6b7280,stroke-width:1px
-	style SETUPAUTH fill:transparent,stroke:#6b7280,stroke-width:1px
-	style IMAGEUPLOAD fill:transparent,stroke:#6b7280,stroke-width:1px
-	style AWS fill:transparent,stroke:#6b7280,stroke-width:1.2px
 	style DomainSpacer fill:transparent,stroke:transparent,color:transparent
 
 ```
