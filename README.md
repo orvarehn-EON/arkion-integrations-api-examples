@@ -33,7 +33,7 @@ Required values in `.env`:
 
 Optional:
 
-- `INTEGRATIONS_BASE_URL` (defaults to `https://integrations-gateway.dev.arkion.co`)
+- `INTEGRATIONS_BASE_URL` (defaults to `https://integrations-gateway.app.arkion.co`)
 - `INTEGRATIONS_ORIGIN` (only required when your Arkion setup enforces Origin validation)
 
 The app generates an assertion JWT from `PUBLIC_KEY` + `PRIVATE_KEY`, then sends it to `POST /tenant/{tenant_id}/auth/token`.
@@ -75,7 +75,7 @@ The script prints:
 Token exchange:
 
 ```bash
-curl -X POST "https://integrations-gateway.dev.arkion.co/tenant/<tenant_id>/auth/token" \
+curl -X POST "https://integrations-gateway.app.arkion.co/tenant/<tenant_id>/auth/token" \
 	-H "x-api-key: $INTEGRATIONS_API_KEY" \
 	-H "Content-Type: application/json" \
 	-d '{"token":"<generated_assertion_token>"}'
@@ -90,7 +90,7 @@ If your Arkion setup requires Origin validation, also send:
 Project call with bearer token:
 
 ```bash
-curl -X GET "https://integrations-gateway.dev.arkion.co/tenant/<tenant_id>/projects/<project_id>" \
+curl -X GET "https://integrations-gateway.app.arkion.co/tenant/<tenant_id>/projects/<project_id>" \
 	-H "x-api-key: $INTEGRATIONS_API_KEY" \
 	-H "Authorization: Bearer <access_token>"
 ```

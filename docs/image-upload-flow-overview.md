@@ -1,7 +1,6 @@
 # Image Upload Flow Overview
 
 ```mermaid
-%%{init: {'theme': 'dark'}}%%
 flowchart TB
 	Client[Client]
 	TenantAdmin[Arkion Tenant Admin]
@@ -94,7 +93,7 @@ flowchart TB
 	ClientApp -->|0.5 Lookup available customers| GetCustomers
 	GetCustomers --> CustList
 
-	ClientApp -->|1 Create project with chosen customer_id #40;optional#41;| CreateProject
+	ClientApp -->|1 Create project with chosen customer_id &#40;optional&#41;| CreateProject
 	CreateProject --> Db
 
 	ClientApp -->|2 Create flight| CreateFlight
@@ -114,26 +113,4 @@ flowchart TB
 	ClientApp -->|6 Poll inference status| InferenceStatus
 	InferenceStatus --> Db
 
-	classDef client fill:#2a1f10,stroke:#d2a865,stroke-width:1.2px,color:#f8e7c6
-	classDef clientHighlight fill:#3a0f0f,stroke:#ff8a65,stroke-width:2px,color:#ffd9cc
-	classDef tenant fill:#102331,stroke:#6db5e7,stroke-width:1.2px,color:#d7efff
-	classDef api fill:#12301c,stroke:#78d79a,stroke-width:1.2px,color:#ddfbe7
-	classDef aws fill:#281538,stroke:#b896ff,stroke-width:1.2px,color:#eee3ff
-
-	class Client clientHighlight
-	class ClientApp client
-	class Tenant,CustProd,CustSandbox tenant
-	class Domain,ApiDocs,DomainNote,Auth,GetCustomers,CreateProject,CreateFlight,GetSignedUrl,StartImport,InferenceStatus api
-	class S3,Worker,Db aws
-
-	style INTEGRATIONS fill:#0b1020,stroke:#4f7cac,stroke-width:1.2px,color:#dbeafe
-	style TENANT fill:#0d1a2a,stroke:#6db5e7,stroke-width:1.2px,color:#d7efff
-	style CUSTOMERENV fill:#23191a,stroke:#f59e9e,stroke-width:1.2px,color:#ffe3e3
-	style SETUPAUTH fill:#102214,stroke:#68d391,stroke-width:1.2px,color:#def7e7
-	style IMAGEUPLOAD fill:#1b1228,stroke:#b896ff,stroke-width:1.2px,color:#eee3ff
-	style AWS fill:#101625,stroke:#8b9bb8,stroke-width:1.2px,color:#e5e7eb
-	style INTEGRATIONS_TOP fill:transparent,stroke:transparent,color:transparent
-	style INTEGRATIONS_BODY fill:transparent,stroke:transparent,color:transparent
-	style CLIENT_AUTH_ROW fill:transparent,stroke:transparent,color:transparent
-	style DomainSpacer fill:transparent,stroke:transparent,color:transparent
 ```
