@@ -1,6 +1,7 @@
 # Image Upload Flow Overview
 
 ```mermaid
+%%{init: {'flowchart': {'nodeSpacing': 55, 'rankSpacing': 75}}}%%
 flowchart TB
 	Client[Client]
 	TenantAdmin[Arkion Tenant Admin]
@@ -11,7 +12,6 @@ flowchart TB
 	Domain[Domain integrations-gateway.app.arkion.co]
 	ApiDocs[API docs integrations-gateway.app.arkion.co/docs]
 	DomainNote[Note app subdomain can differ by region or custom domain environment]
-	DomainSpacer[ ]
 
 	Client ~~~ ClientApp
 	Domain --- ApiDocs
@@ -101,6 +101,5 @@ flowchart TB
 	style SETUPAUTH fill:transparent
 	style IMAGEUPLOAD fill:transparent
 	style AWS fill:transparent
-	style DomainSpacer fill:transparent,stroke:transparent,color:transparent
 
 ```
