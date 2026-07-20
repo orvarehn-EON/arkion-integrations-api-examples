@@ -13,7 +13,7 @@ flowchart TB
 		ClientApp -->|0.3 Build assertion token| AssertionToken
 	end
 
-	Client --> ClientApp
+	Client ~~~ ClientApp
 
 	subgraph INTEGRATIONS[Integrations API]
 		direction TB
@@ -24,7 +24,7 @@ flowchart TB
 			ApiDocs[API docs integrations-gateway.app.arkion.co/docs]
 			DomainNote[Note app subdomain can differ by region or custom domain environment]
 			Domain --- ApiDocs
-			DomainNote -.-> Domain
+			DomainNote -. note .- Domain
 			DomainSpacer[ ]
 		end
 
@@ -68,10 +68,10 @@ flowchart TB
 		end
 
 		GetCustomers ~~~ CreateProject ~~~ CreateFlight ~~~ GetSignedUrl ~~~ StartImport ~~~ InferenceStatus
-		UseProd -. maps to .-> CustProd
-		UseSandbox -. maps to .-> CustSandbox
-		UseProd -. used by .-> ClientApp
-		UseSandbox -. used by .-> ClientApp
+		UseProd -. maps to .- CustProd
+		UseSandbox -. maps to .- CustSandbox
+		UseProd -. used by .- ClientApp
+		UseSandbox -. used by .- ClientApp
 
 	end
 
