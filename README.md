@@ -2,138 +2,6 @@
 
 Examples of how to use Arkions integrations API.
 
-## Data Model Diagram
-
-```mermaid
-erDiagram
-		Tenant {
-			string tenant_id PK
-		}
-
-		TenantCustomer {
-			int id PK
-			string tenant_id FK
-			int customer_id FK
-		}
-
-		Customer {
-			int id PK
-			string name
-			string client_customer_id
-		}
-
-		Region {
-			int id PK
-			int customer_id FK
-			string name
-			int voltage
-			int ai_template_id
-		}
-
-		Project {
-			int id PK
-			int customer_id FK
-			int status_id
-			string status
-			int region_id FK
-			string region
-			int mission_area_id
-			string mission_area
-			string year
-			string flight
-			string client_project_id
-			json client_meta_json
-			string tags
-		}
-
-		Flight {
-			int id PK
-			int project_id FK
-		}
-
-		Image {
-			int id PK
-			int project_id FK
-			int flight_id FK
-			int pole_id
-			int powerline_id
-			float compass_dir
-			int width
-			int height
-			string lat
-			string lng
-			string name
-			string extension
-			string filename
-		}
-
-		ImageObject {
-			int id PK
-			int project_id FK
-			int image_id FK
-		}
-
-		ImageObjectType {
-			int id PK
-			int project_id FK
-			int image_id FK
-			int image_object_id FK
-			int type_id FK
-			int severity_id FK
-		}
-
-		Defect {
-			int image_id FK
-			int image_object_id FK
-			int image_object_type_id FK
-		}
-
-		ObjectType {
-			int id PK
-			int category_id FK
-			string name
-			string client_name
-			string client_id
-		}
-
-		ObjectCategory {
-			int id PK
-			string name
-			string client_name
-			string client_id
-		}
-
-		SeverityType {
-			int id PK
-			string name
-			string client_name
-			string client_id
-		}
-
-		Tenant ||--o{ TenantCustomer : "tenant_id -> tenant_id"
-		Customer ||--o{ TenantCustomer : "customer_id -> id"
-		Customer ||--o{ Region : "customer_id -> id"
-		Customer ||--o{ Project : "customer_id -> id"
-
-		Project ||--o{ Flight : "project_id -> id"
-		Project ||--o{ Image : "project_id -> id"
-		Flight ||--o{ Image : "flight_id -> id"
-
-		Image ||--o{ ImageObject : "image_id -> id"
-		Project ||--o{ ImageObject : "project_id -> id"
-
-		ImageObject ||--o{ ImageObjectType : "image_object_id -> id"
-		Image ||--o{ ImageObjectType : "image_id -> id"
-		Project ||--o{ ImageObjectType : "project_id -> id"
-
-		ObjectCategory ||--o{ ObjectType : "category_id -> id"
-		ObjectType ||--o{ ImageObjectType : "type_id -> id"
-		SeverityType ||--o{ ImageObjectType : "severity_id -> id"
-
-		ImageObjectType ||--o{ Defect : "id -> image_object_type_id"
-```
-
-
 ## Prerequisites
 
 - Node.js 18+
@@ -165,7 +33,7 @@ Required values in `.env`:
 
 Optional:
 
-- `INTEGRATIONS_BASE_URL` (defaults to `https://integrations-gateway.dev.arkion.co`)
+- `INTEGRATIONS_BASE_URL` (defaults to `https://integrations-gateway.app.arkion.co`)
 - `INTEGRATIONS_ORIGIN` (only required when your Arkion setup enforces Origin validation)
 
 The app generates an assertion JWT from `PUBLIC_KEY` + `PRIVATE_KEY`, then sends it to `POST /tenant/{tenant_id}/auth/token`.
@@ -235,7 +103,7 @@ The script prints:
 Token exchange:
 
 ```bash
-curl -X POST "https://integrations-gateway.dev.arkion.co/tenant/<tenant_id>/auth/token" \
+curl -X POST "https://integrations-gateway.app.arkion.co/tenant/<tenant_id>/auth/token" \
 	-H "x-api-key: $INTEGRATIONS_API_KEY" \
 	-H "Content-Type: application/json" \
 	-d '{"token":"<generated_assertion_token>"}'
@@ -250,7 +118,7 @@ If your Arkion setup requires Origin validation, also send:
 Project call with bearer token:
 
 ```bash
-curl -X GET "https://integrations-gateway.dev.arkion.co/tenant/<tenant_id>/projects/<project_id>" \
+curl -X GET "https://integrations-gateway.app.arkion.co/tenant/<tenant_id>/projects/<project_id>" \
 	-H "x-api-key: $INTEGRATIONS_API_KEY" \
 	-H "Authorization: Bearer <access_token>"
 ```
@@ -278,6 +146,27 @@ This example client handles those cases by:
 - Retrying HTTP `504` responses with the same exponential backoff + jitter strategy (treating gateway integration timeout/network issues as transient).
 - Respecting `Retry-After` when present.
 - Surfacing a clear error hint when retries are exhausted.
+
+## Uploading images
+
+### Docs
+- See the flow diagram in [docs/image-upload-flow-overview.md](docs/image-upload-flow-overview.md)
+- See the data model diagram in [docs/data-model-diagram.md](docs/data-model-diagram.md)
+
+### Prerequisites
+
+- Lookup `tenant_id` in `app.arkion.co/tenant-admin` UI or ask arkion. The `app` part in the domain can differ depending on region and if a custom domain/environment has been paid for.
+- Get a list of customers within your tenant with GET `/tenant/{tenant_id}/customers`
+- Each customer in the response will contain an `id` that you will use in other requests as `customer_id`. The customer response will also contain your customer `name`. If the name contains `sandbox` then it is meant to be used for testing/qa purposes. Otherwise it is for production use. Production customers are typically contract based.
+
+### Upload
+
+- Optionally create a project with `POST /tenant/{tenant_id}/projects` or use an existing project
+- Create a flight with `POST /tenant/{tenant_id}/projects/{project_id}/flights`
+- For each image call `GET /tenant/{tenant_id}/projects/{project_id}/upload/presigned_upload_url` which will return a `signed_url` in the response which is used to upload the image directly our AWS S3 bucket
+- When all images for the flight is uploaded call `POST /tenant/{tenant_id}/projects/{project_id}/upload/start_import` to start our inference job
+- To check if inference is done call `GET /tenant/{tenant_id}/projects/{project_id}/upload/inference_status` (this is inference only and does not mean that manual analysis has been done!)
+
 
 ## Webhook Receiver Example
 
